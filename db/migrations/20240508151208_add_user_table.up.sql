@@ -1,4 +1,4 @@
-CREATE TABLE IF NOT EXISTS users (
+CREATE TABLE users (
     id SERIAL PRIMARY KEY,
     phoneNumber VARCHAR(20) NOT NULL,
     name VARCHAR(50) NOT NULL,
@@ -10,14 +10,5 @@ CREATE TABLE IF NOT EXISTS users (
 
 -- Index untuk mempercepat pencarian berdasarkan nomor telepon
 CREATE INDEX idx_users_phone_number ON users (phoneNumber);
+CREATE INDEX idx_users_id ON users (id);
 
--- Tabel untuk menyimpan token JWT
-CREATE TABLE IF NOT EXISTS JWTToken (
-    id SERIAL PRIMARY KEY,
-    userid INT ,
-    token TEXT ,
-    FOREIGN KEY (userId) REFERENCES users(id)
-);
-
--- Untuk mempercepat pencarian berdasarkan nomor telepon, indeks tambahan dibuat.
-CREATE INDEX idx_jwt_token_user_id ON JWTToken (userId);
