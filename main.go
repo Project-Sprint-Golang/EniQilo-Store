@@ -18,7 +18,7 @@ import (
 var db *sql.DB
 
 type User struct {
-	UserID     int       `json:"userId"`
+	UserID     int       `json:"id"`
 	PhoneNumber string    `json:"phoneNumber"`
 	Name       string    `json:"name"`
 	Password   string    `json:"-"`
@@ -39,13 +39,15 @@ func main() {
 	defer db.Close()
 
 	// Define HTTP routes
-	http.HandleFunc("/v1/users/register", registerUser)
-	http.HandleFunc("/v1/users/login", loginUser)
+	http.HandleFunc("/v1/staff/register", registerStaff)
+	http.HandleFunc("/v1/customer/register", registerUser)
+	http.HandleFunc("/v1/staff/login", loginUser)
+	
 
 	// Start server
 	port := "8080"
 	log.Printf("Server listening on port %s...", port)
-	log.Fatal(http.ListenAndServe(":"+port, nil))
+	log.Fatal(http.ListenAndServe(":"+port, nil))	
 }
 
 func initDB() {
@@ -77,6 +79,9 @@ func registerUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Set role for regular user
+	user.Role = 2
+
 	// Hash the password
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(user.Password), bcrypt.DefaultCost)
 	if err != nil {
@@ -92,9 +97,88 @@ func registerUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Retrieve last inserted ID
+	var lastInsertedID int
+	err = db.QueryRow("SELECT lastval()").Scan(&lastInsertedID)
+	if err != nil {
+		http.Error(w, "Error getting last inserted ID", http.StatusInternalServerError)
+		return
+	}
+
+	// Generate JWT token
+	token, err := generateJWT(lastInsertedID)
+	if err != nil {
+		http.Error(w, "Error generating token", http.StatusInternalServerError)
+		return
+	}
+
 	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(map[string]string{"message": "User registered successfully"})
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"message": "User registered successfully",
+		"data": map[string]interface{}{
+			"userID":      lastInsertedID,
+			"phoneNumber": user.PhoneNumber,
+			"name":        user.Name,
+			"accessToken": token,
+		},
+	})
 }
+
+func registerStaff(w http.ResponseWriter, r *http.Request) {
+	var user User
+	err := json.NewDecoder(r.Body).Decode(&user)
+	if err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	// Set role for staff
+	user.Role = 1
+
+	// Hash the password
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(user.Password), bcrypt.DefaultCost)
+	if err != nil {
+		http.Error(w, "Error hashing the password", http.StatusInternalServerError)
+		return
+	}
+
+	// Insert user into database
+	_, err = db.Exec("INSERT INTO users (phoneNumber, name, password, role) VALUES ($1, $2, $3, $4)",
+		user.PhoneNumber, user.Name, string(hashedPassword), user.Role)
+	if err != nil {
+		http.Error(w, "Error registering user", http.StatusInternalServerError)
+		return
+	}
+
+	// Retrieve last inserted ID
+	var lastInsertedID int
+	err = db.QueryRow("SELECT lastval()").Scan(&lastInsertedID)
+	if err != nil {
+		http.Error(w, "Error getting last inserted ID", http.StatusInternalServerError)
+		return
+	}
+
+	// Generate JWT token
+	token, err := generateJWT(lastInsertedID)
+	if err != nil {
+		http.Error(w, "Error generating token", http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusCreated)
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"message": "Staff registered successfully",
+		"data": map[string]interface{}{
+			"userID":      lastInsertedID,
+			"phoneNumber": user.PhoneNumber,
+			"name":        user.Name,
+			"accessToken": token,
+		},
+	})
+}
+
+
+
 
 func loginUser(w http.ResponseWriter, r *http.Request) {
 	var user User
@@ -104,11 +188,13 @@ func loginUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Retrieve user from database
-	row := db.QueryRow("SELECT userId, password FROM users WHERE phoneNumber = $1", user.PhoneNumber)
+	// Declare variables to hold values from database
 	var userID int
-	var hashedPassword string
-	err = row.Scan(&userID, &hashedPassword)
+	var hashedPassword, phoneNumber, name string
+
+	// Retrieve user from database
+	row := db.QueryRow("SELECT id, password, phoneNumber, name FROM users WHERE phoneNumber = $1", user.PhoneNumber)
+	err = row.Scan(&userID, &hashedPassword, &phoneNumber, &name)
 	if err != nil {
 		http.Error(w, "User not found", http.StatusNotFound)
 		return
@@ -128,10 +214,22 @@ func loginUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Return token
+	// Prepare the response
+	response := map[string]interface{}{
+		"message": "User logged in successfully",
+		"data": map[string]interface{}{
+			"userId":      userID,
+			"phoneNumber": phoneNumber,
+			"name":        name,
+			"accessToken": token,
+		},
+	}
+
+	// Return the response
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(map[string]string{"message": "User logged in successfully", "accessToken": token})
+	json.NewEncoder(w).Encode(response)
 }
+
 
 func generateJWT(userID int) (string, error) {
 	claims := JWTClaims{
