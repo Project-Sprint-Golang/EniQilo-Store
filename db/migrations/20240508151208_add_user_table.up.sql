@@ -5,7 +5,8 @@ CREATE TABLE users (
     password VARCHAR(100) NOT NULL,
     role INTEGER NOT NULL,
     createdAt TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updatedAt TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+    updatedAt TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    deletedAt TIMESTAMP
 );
 
 -- Index untuk mempercepat pencarian berdasarkan nomor telepon
