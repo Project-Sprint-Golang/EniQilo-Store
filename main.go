@@ -2,7 +2,6 @@ package main
 
 import (
 	"database/sql"
-	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
@@ -35,26 +34,16 @@ type JWTClaims struct {
 }
 
 func main() {
-	// Set up database connection
 	godotenv.Load()
 	initDB()
 	defer db.Close()
 
 	router := gin.Default()
 
+	// Setup routes
 	routes.SetupRouter(router)
 
 	router.Run(":8080")
-
-	// // Define HTTP routes
-	// http.HandleFunc("/v1/staff/register", registerStaff)
-	// http.HandleFunc("/v1/customer/register", registerUser)
-	// http.HandleFunc("/v1/staff/login", loginUser)
-
-	// // Start server
-	// port := "8080"
-	// log.Printf("Server listening on port %s...", port)
-	// log.Fatal(http.ListenAndServe(":"+port, nil))
 }
 
 func initDB() {
@@ -78,51 +67,44 @@ func initDB() {
 	}
 }
 
-func registerUser(w http.ResponseWriter, r *http.Request) {
+func registerUser(c *gin.Context) {
 	var user User
-	err := json.NewDecoder(r.Body).Decode(&user)
-	if err != nil {
-		http.Error(w, "Invalid request body", http.StatusBadRequest)
+	if err := c.ShouldBindJSON(&user); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body"})
 		return
 	}
 
-	// Set role for regular user
 	user.Role = 2
 
-	// Hash the password
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(user.Password), bcrypt.DefaultCost)
 	if err != nil {
-		http.Error(w, "Error hashing the password", http.StatusInternalServerError)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error hashing the password"})
 		return
 	}
 
-	// Insert user into database
 	_, err = db.Exec("INSERT INTO users (phoneNumber, name, password, role) VALUES ($1, $2, $3, $4)",
 		user.PhoneNumber, user.Name, string(hashedPassword), user.Role)
 	if err != nil {
-		http.Error(w, "Error registering user", http.StatusInternalServerError)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error registering user"})
 		return
 	}
 
-	// Retrieve last inserted ID
 	var lastInsertedID int
 	err = db.QueryRow("SELECT lastval()").Scan(&lastInsertedID)
 	if err != nil {
-		http.Error(w, "Error getting last inserted ID", http.StatusInternalServerError)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error getting last inserted ID"})
 		return
 	}
 
-	// Generate JWT token
 	token, err := generateJWT(lastInsertedID)
 	if err != nil {
-		http.Error(w, "Error generating token", http.StatusInternalServerError)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error generating token"})
 		return
 	}
 
-	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(map[string]interface{}{
+	c.JSON(http.StatusCreated, gin.H{
 		"message": "User registered successfully",
-		"data": map[string]interface{}{
+		"data": gin.H{
 			"userID":      lastInsertedID,
 			"phoneNumber": user.PhoneNumber,
 			"name":        user.Name,
@@ -131,51 +113,44 @@ func registerUser(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-func registerStaff(w http.ResponseWriter, r *http.Request) {
+func registerStaff(c *gin.Context) {
 	var user User
-	err := json.NewDecoder(r.Body).Decode(&user)
-	if err != nil {
-		http.Error(w, "Invalid request body", http.StatusBadRequest)
+	if err := c.ShouldBindJSON(&user); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body"})
 		return
 	}
 
-	// Set role for staff
 	user.Role = 1
 
-	// Hash the password
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(user.Password), bcrypt.DefaultCost)
 	if err != nil {
-		http.Error(w, "Error hashing the password", http.StatusInternalServerError)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error hashing the password"})
 		return
 	}
 
-	// Insert user into database
 	_, err = db.Exec("INSERT INTO users (phoneNumber, name, password, role) VALUES ($1, $2, $3, $4)",
 		user.PhoneNumber, user.Name, string(hashedPassword), user.Role)
 	if err != nil {
-		http.Error(w, "Error registering user", http.StatusInternalServerError)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error registering user"})
 		return
 	}
 
-	// Retrieve last inserted ID
 	var lastInsertedID int
 	err = db.QueryRow("SELECT lastval()").Scan(&lastInsertedID)
 	if err != nil {
-		http.Error(w, "Error getting last inserted ID", http.StatusInternalServerError)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error getting last inserted ID"})
 		return
 	}
 
-	// Generate JWT token
 	token, err := generateJWT(lastInsertedID)
 	if err != nil {
-		http.Error(w, "Error generating token", http.StatusInternalServerError)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error generating token"})
 		return
 	}
 
-	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(map[string]interface{}{
+	c.JSON(http.StatusCreated, gin.H{
 		"message": "Staff registered successfully",
-		"data": map[string]interface{}{
+		"data": gin.H{
 			"userID":      lastInsertedID,
 			"phoneNumber": user.PhoneNumber,
 			"name":        user.Name,
@@ -184,44 +159,38 @@ func registerStaff(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-func loginUser(w http.ResponseWriter, r *http.Request) {
+func loginUser(c *gin.Context) {
 	var user User
-	err := json.NewDecoder(r.Body).Decode(&user)
-	if err != nil {
-		http.Error(w, "Invalid request body", http.StatusBadRequest)
+	if err := c.ShouldBindJSON(&user); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body"})
 		return
 	}
 
-	// Declare variables to hold values from database
 	var userID int
 	var hashedPassword, phoneNumber, name string
 
-	// Retrieve user from database
 	row := db.QueryRow("SELECT id, password, phoneNumber, name FROM users WHERE phoneNumber = $1", user.PhoneNumber)
-	err = row.Scan(&userID, &hashedPassword, &phoneNumber, &name)
+	err := row.Scan(&userID, &hashedPassword, &phoneNumber, &name)
 	if err != nil {
-		http.Error(w, "User not found", http.StatusNotFound)
+		c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
 		return
 	}
 
-	// Compare password
 	err = bcrypt.CompareHashAndPassword([]byte(hashedPassword), []byte(user.Password))
 	if err != nil {
-		http.Error(w, "Incorrect password", http.StatusBadRequest)
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Incorrect password"})
 		return
 	}
 
-	// Generate JWT token
 	token, err := generateJWT(userID)
 	if err != nil {
-		http.Error(w, "Error generating token", http.StatusInternalServerError)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error generating token"})
 		return
 	}
 
-	// Prepare the response
-	response := map[string]interface{}{
+	response := gin.H{
 		"message": "User logged in successfully",
-		"data": map[string]interface{}{
+		"data": gin.H{
 			"userId":      userID,
 			"phoneNumber": phoneNumber,
 			"name":        name,
@@ -229,9 +198,7 @@ func loginUser(w http.ResponseWriter, r *http.Request) {
 		},
 	}
 
-	// Return the response
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(response)
+	c.JSON(http.StatusOK, response)
 }
 
 func generateJWT(userID int) (string, error) {
