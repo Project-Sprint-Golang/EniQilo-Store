@@ -9,7 +9,9 @@ import (
 	"os"
 	"time"
 
+	"github.com/Project-Sprint-Golang/EniQilo-Store/app/routes"
 	"github.com/dgrijalva/jwt-go"
+	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
 	_ "github.com/lib/pq"
 	"golang.org/x/crypto/bcrypt"
@@ -18,13 +20,13 @@ import (
 var db *sql.DB
 
 type User struct {
-	UserID     int       `json:"id"`
+	UserID      int       `json:"id"`
 	PhoneNumber string    `json:"phoneNumber"`
-	Name       string    `json:"name"`
-	Password   string    `json:"-"`
-	Role       int       `json:"role"`
-	CreatedAt  time.Time `json:"createdAt"`
-	UpdatedAt  time.Time `json:"updatedAt"`
+	Name        string    `json:"name"`
+	Password    string    `json:"-"`
+	Role        int       `json:"role"`
+	CreatedAt   time.Time `json:"createdAt"`
+	UpdatedAt   time.Time `json:"updatedAt"`
 }
 
 type JWTClaims struct {
@@ -34,20 +36,25 @@ type JWTClaims struct {
 
 func main() {
 	// Set up database connection
-    godotenv.Load()
+	godotenv.Load()
 	initDB()
 	defer db.Close()
 
-	// Define HTTP routes
-	http.HandleFunc("/v1/staff/register", registerStaff)
-	http.HandleFunc("/v1/customer/register", registerUser)
-	http.HandleFunc("/v1/staff/login", loginUser)
-	
+	router := gin.Default()
 
-	// Start server
-	port := "8080"
-	log.Printf("Server listening on port %s...", port)
-	log.Fatal(http.ListenAndServe(":"+port, nil))	
+	routes.SetupRouter(router)
+
+	router.Run(":8080")
+
+	// // Define HTTP routes
+	// http.HandleFunc("/v1/staff/register", registerStaff)
+	// http.HandleFunc("/v1/customer/register", registerUser)
+	// http.HandleFunc("/v1/staff/login", loginUser)
+
+	// // Start server
+	// port := "8080"
+	// log.Printf("Server listening on port %s...", port)
+	// log.Fatal(http.ListenAndServe(":"+port, nil))
 }
 
 func initDB() {
@@ -177,9 +184,6 @@ func registerStaff(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-
-
-
 func loginUser(w http.ResponseWriter, r *http.Request) {
 	var user User
 	err := json.NewDecoder(r.Body).Decode(&user)
@@ -229,7 +233,6 @@ func loginUser(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(response)
 }
-
 
 func generateJWT(userID int) (string, error) {
 	claims := JWTClaims{
