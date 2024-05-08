@@ -43,6 +43,16 @@ func main() {
 	// Setup routes
 	routes.SetupRouter(router)
 
+	
+	// Define HTTP routes
+	router.POST("/v1/staff/register", registerStaff)
+	router.POST("/v1/customer/register", registerUser)
+	router.POST("/v1/staff/login", loginUser)
+	
+	// Start server
+	// port := "8080"
+	// log.Printf("Server listening on port %s...", port)
+	// log.Fatal(http.ListenAndServe(":"+port, nil))
 	router.Run(":8080")
 }
 
