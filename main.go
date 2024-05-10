@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/Project-Sprint-Golang/EniQilo-Store/app/routes"
+	"github.com/Project-Sprint-Golang/EniQilo-Store/config"
 	"github.com/dgrijalva/jwt-go"
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
@@ -35,25 +36,24 @@ type JWTClaims struct {
 
 func main() {
 	godotenv.Load()
-	initDB()
-	defer db.Close()
+	config.InitDB()
 
 	router := gin.Default()
 
 	// Setup routes
 	routes.SetupRouter(router)
 
-	
 	// Define HTTP routes
-	router.POST("/v1/staff/register", registerStaff)
-	router.POST("/v1/customer/register", registerUser)
-	router.POST("/v1/staff/login", loginUser)
-	
+	// router.POST("/v1/staff/register", registerStaff)
+	// router.POST("/v1/customer/register", registerUser)
+	// router.POST("/v1/staff/login", loginUser)
+
 	// Start server
 	// port := "8080"
 	// log.Printf("Server listening on port %s...", port)
 	// log.Fatal(http.ListenAndServe(":"+port, nil))
 	router.Run(":8080")
+	defer db.Close()
 }
 
 func initDB() {

@@ -6,11 +6,14 @@ import (
 	"log"
 	"os"
 
+	"github.com/joho/godotenv"
 	_ "github.com/lib/pq"
 )
 
-func DatabaseConnection() (*sql.DB, error) {
+var DB *sql.DB
 
+func InitDB() {
+	godotenv.Load()
 	dbUsername := os.Getenv("DB_USERNAME")
 	dbPassword := os.Getenv("DB_PASSWORD")
 	dbHost := os.Getenv("DB_HOST")
@@ -18,7 +21,7 @@ func DatabaseConnection() (*sql.DB, error) {
 	dbName := os.Getenv("DB_NAME")
 	dbParams := os.Getenv("DB_PARAMS")
 
-	connString := fmt.Sprintf("postgres://%s:%s@%s:%s/%s?%s",
+	connString := fmt.Sprintf("postgresql://%s:%s@%s:%s/%s?%s",
 		dbUsername,
 		dbPassword,
 		dbHost,
@@ -27,15 +30,15 @@ func DatabaseConnection() (*sql.DB, error) {
 		dbParams)
 
 	var err error
-	db, err := sql.Open("postgres", connString)
+	DB, err = sql.Open("postgres", connString)
 	if err != nil {
 		log.Fatal("Error connecting to the database: ", err)
 	}
 
-	err = db.Ping()
+	err = DB.Ping()
 	if err != nil {
 		log.Fatal("Error pinging the database: ", err)
 	}
-
-	return db, nil
+	fmt.Println("Success Connect")
+	// return DB, err
 }

@@ -3,7 +3,7 @@ CREATE TABLE IF NOT EXISTS products (
     name VARCHAR(255) NOT NULL,
     sku VARCHAR(255),
     category VARCHAR(255) CHECK (category IN ('Clothing', 'Accessories', 'Footwear', 'Beverages')),
-    imageUrl TEXT[],
+    imageUrl TEXT,
     notes TEXT,
     price DECIMAL(10, 2) NOT NULL,
     stock INT NOT NULL,
